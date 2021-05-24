@@ -1,18 +1,15 @@
 <?php
 
-function clean($str)
-{
+function clean($str) {
     return htmlentities($str);
 }
 
-function redirect($location)
-{
+function redirect($location) {
     header("location: {$location}");
     exit();
 }
 
-function set_message($message)
-{
+function set_message($message) {
     if (!empty($message)) {
         $_SESSION['message'] = $message;
     } else {
@@ -20,24 +17,20 @@ function set_message($message)
     }
 }
 
-function display_message()
-{
+function display_message() {
     if (isset($_SESSION['message'])) {
         echo $_SESSION['message'];
         unset($_SESSION['message']);
     }
 }
 
-function token_generator()
-{
+function token_generator() {
     $token = $_SESSION['token'] = md5(uniqid(mt_rand(), true));
     return $token;
 }
 
-
-function email_exists($email)
-{
-    $email = filter_var($email,FILTER_SANITIZE_EMAIL);
+function email_exists($email) {
+    $email = filter_var($email, FILTER_SANITIZE_EMAIL);
     $query = "SELECT id FROM users WHERE email = '$email'";
     if (row_count(query($query))) {
         return true;
@@ -46,9 +39,8 @@ function email_exists($email)
     }
 }
 
-function user_exists($user)
-{
-    $user = filter_var($user,   FILTER_SANITIZE_STRING);
+function user_exists($user) {
+    $user = filter_var($user, FILTER_SANITIZE_STRING);
     $query = "SELECT id FROM users WHERE username = '$user'";
     if (row_count(query($query))) {
         return true;
@@ -57,8 +49,7 @@ function user_exists($user)
     }
 }
 
-function validate_user_registration()
-{
+function validate_user_registration() {
     $errors = [];
     if ($_SERVER['REQUEST_METHOD'] == "POST") {
         $first_name = clean($_POST['first_name']);
@@ -98,26 +89,25 @@ function validate_user_registration()
                       <span aria-hidden="true">&times;</span></button></div>';
             }
         } else {
-            $first_name = filter_var($first_name,   FILTER_SANITIZE_STRING);
-            $last_name  = filter_var($last_name,    FILTER_SANITIZE_STRING);
-            $username   = filter_var($username,     FILTER_SANITIZE_STRING);
-            $email      = filter_var($email,        FILTER_SANITIZE_EMAIL);
-            $password   = filter_var($password,     FILTER_SANITIZE_STRING);
-            $password   = password_hash($password,PASSWORD_DEFAULT );
+            $first_name = filter_var($first_name, FILTER_SANITIZE_STRING);
+            $last_name = filter_var($last_name, FILTER_SANITIZE_STRING);
+            $username = filter_var($username, FILTER_SANITIZE_STRING);
+            $email = filter_var($email, FILTER_SANITIZE_EMAIL);
+            $password = filter_var($password, FILTER_SANITIZE_STRING);
+            $password = password_hash($password, PASSWORD_DEFAULT);
             createuser($first_name, $last_name, $username, $email, $password);
         }
     }
 }
 
-function createuser($first_name, $last_name, $username, $email, $password)
-{
+function createuser($first_name, $last_name, $username, $email, $password) {
     global $url;
     $first_name = escape($first_name);
     $last_name = escape($last_name);
     $username = escape($username);
     $email = escape($email);
     $password = escape($password);
-    $password   = password_hash($password,PASSWORD_DEFAULT );
+//    $password = password_hash($password, PASSWORD_DEFAULT);
     $token = md5($username . microtime());
     $sql = "INSERT INTO users(first_name,last_name,username,email,password,token,activition) ";
     $sql .= "VALUES('$first_name','$last_name','$username','$email','$password','$token',0)";
@@ -126,23 +116,21 @@ function createuser($first_name, $last_name, $username, $email, $password)
     $subject = "Activate Account";
     $msg = "Please Click the link below to Activate Your Account
             $url/activate.php?email=$email&code=$token";
-    $headers = "From: x24web@gmail.com";
+    $headers = "From: ap.sparkle001@gmail.com";
     send_email($email, $subject, $msg, $headers);
     redirect('index.php');
 }
 
-function send_email($email, $subject, $msg, $headers)
-{
+function send_email($email, $subject, $msg, $headers) {
     return mail($email, $subject, $msg, $headers);
 }
 
-function activate_user()
-{
+function activate_user() {
     if ($_SERVER['REQUEST_METHOD'] == "GET") {
         $email = clean($_GET['email']);
         $code = clean($_GET['code']);
-        $email      = filter_var($email,    FILTER_SANITIZE_EMAIL);
-        $code   = filter_var($code, FILTER_SANITIZE_STRING);
+        $email = filter_var($email, FILTER_SANITIZE_EMAIL);
+        $code = filter_var($code, FILTER_SANITIZE_STRING);
         $query = "SELECT id FROM users WHERE email='$email' AND token='$code'";
         $queryEmail = "SELECT id FROM users WHERE email='$email'";
         $result = query($query);
@@ -167,14 +155,13 @@ function activate_user()
     }
 }
 
-function validate_user_login()
-{
+function validate_user_login() {
     $errors = [];
     if ($_SERVER['REQUEST_METHOD'] == "POST") {
         $email = clean($_POST['email']);
         $password = clean($_POST['password']);
         $remember = clean(isset($_POST['remember']));
-        $password   = password_hash($password,PASSWORD_DEFAULT );
+//        $password = password_hash($password, PASSWORD_DEFAULT);
         if (empty($email)) {
             $errors[] = "Email field cannot be empty";
         }
@@ -196,31 +183,37 @@ function validate_user_login()
             }
         }
     }
-
 }
 
-function user_login($email, $password, $remember)
-{
-    $password   = filter_var($password, FILTER_SANITIZE_STRING);
-    $password   = password_hash($password,PASSWORD_DEFAULT );
-    $email      = filter_var($email,    FILTER_SANITIZE_EMAIL);
-    $remember   = filter_var($remember, FILTER_SANITIZE_STRING);
+function user_login($email, $password, $remember) {
+    $password = filter_var($password, FILTER_SANITIZE_STRING);
+    $email = filter_var($email, FILTER_SANITIZE_EMAIL);
+    $remember = filter_var($remember, FILTER_SANITIZE_STRING);
 
-    $query = "SELECT id FROM users WHERE email='$email' AND password='$password'";
+    $query = "SELECT * FROM users WHERE email='$email' AND activition='1'";
     $result = query($query);
+    $row = $result->fetch_assoc();
     if (row_count($result) == 1) {
-        if ($remember == "1") {
-            setcookie('email', $email, time() + (86400 * 30));
+        $hashedPwdCheck = password_verify($password, $row['password']);
+        var_dump($hashedPwdCheck);
+        if ($hashedPwdCheck == false) {
+            return false;
+            exit();
+        } elseif ($hashedPwdCheck == true) {
+            if ($remember == "1") {
+                setcookie('email', $email, time() + (86400 * 30));
+            }
+            $_SESSION['email'] = $email;
+            return true;
+            exit();
         }
-        $_SESSION['email'] = $email;
-        return true;
     } else {
         return false;
+        exit();
     }
 }
 
-function login_check_admin()
-{
+function login_check_admin() {
     if (isset($_SESSION['email']) || isset($_COOKIE['email'])) {
         return true;
     } else {
@@ -228,15 +221,13 @@ function login_check_admin()
     }
 }
 
-function login_check_pages()
-{
+function login_check_pages() {
     if (isset($_SESSION['email']) || isset($_COOKIE['email'])) {
         redirect('admin.php');
     }
 }
 
-function recover()
-{
+function recover() {
     global $url;
     if ($_SERVER['REQUEST_METHOD'] == "POST") {
         if (isset($_POST['cancel-submit'])) {
@@ -255,7 +246,7 @@ function recover()
                 $subject = "Activate Account";
                 $msg = "Please Click the link below to Activate Your Account
                 $url/code.php?email=$email&code=$token";
-                $headers = "From: x24web@gmail.com";
+                $headers = "From: ap.sparkle001@gmail.com";
                 send_email($email, $subject, $msg, $headers);
                 redirect('index.php');
             } else {
@@ -269,32 +260,30 @@ function recover()
     }
 }
 
-function check_code()
-{
-    if ($_SERVER['REQUEST_METHOD'] == "GET")
-    {
+function check_code() {
+    if ($_SERVER['REQUEST_METHOD'] == "GET") {
         $email = $_GET['email'];
         $token = $_GET['token'];
-        $email  = filter_var($email,   FILTER_SANITIZE_EMAIL);
-        $token  = filter_var($token,    FILTER_SANITIZE_STRING);
+        $email = filter_var($email, FILTER_SANITIZE_EMAIL);
+        $token = filter_var($token, FILTER_SANITIZE_STRING);
         $query = "SELECT id FROM users WHERE email='$email' AND token='$token'";
         $result = query($query);
         if (row_count($result) == 1) {
             return true;
         }
     }
-    if ($_SERVER['REQUEST_METHOD'] == "POST"){
-        if(isset($_POST['reset-password-submit'])){
+    if ($_SERVER['REQUEST_METHOD'] == "POST") {
+        if (isset($_POST['reset-password-submit'])) {
             $email = $_GET['email'];
             $password = $_POST['password'];
             $confirm_password = $_POST['confirm_password'];
 
-            $email              = filter_var($email,               FILTER_SANITIZE_EMAIL);
-            $password           = filter_var($password,            FILTER_SANITIZE_STRING);
-            $confirm_password   = filter_var($confirm_password,    FILTER_SANITIZE_STRING);
+            $email = filter_var($email, FILTER_SANITIZE_EMAIL);
+            $password = filter_var($password, FILTER_SANITIZE_STRING);
+            $confirm_password = filter_var($confirm_password, FILTER_SANITIZE_STRING);
 
-            if($password == $confirm_password){
-                $password   = password_hash($password,PASSWORD_DEFAULT );
+            if ($password == $confirm_password) {
+                $password = password_hash($password, PASSWORD_DEFAULT);
                 $query = "UPDATE users set password='$password', token='0' WHERE email='$email'";
                 query($query);
                 set_message('<p class="alert alert-success">The password has been updated. Can Be Login Now</p>');
